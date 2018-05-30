@@ -1,0 +1,26 @@
+{
+    "exchanges": {
+        "hitbtc": {
+            "name": "HitBTC",
+            "url": "https://hitbtc.com",
+            "api": "https://api.hitbtc.com",
+            "public_key": "key",
+            "secret": "secret",
+            "enabled": 1,
+            "refresh": 15
+        },
+        "c-cex": {
+            "name": "Ccex",
+            "url": "https://c-cex.com",
+            "api": "https://c-cex.com/t",
+            "public_key": "key",
+            "secret": "secret",
+            "enabled": 1,
+            "refresh": 30
+        }
+    },
+    "telegram": {
+        "token": "token",
+        "chat_id": "id"
+    }
+}
