@@ -106,7 +106,7 @@ class Ccex(object):
 
         if self.to_update.get('prices'):
             self.set_prices(self.to_update.get('prices', []))
-            
+
         if self.to_update.get('total'):
             base = self.to_update.get('total')
             self.set_total_balance(base)
@@ -211,10 +211,10 @@ class Ccex(object):
 
     @threaded
     def set_history(self, base='BTC'):
-        
+
         if not self.balance:
             return
-        
+
         history = []
         for symbol in self.balance:
             pair = symbol + '-' + base
@@ -230,19 +230,12 @@ class Ccex(object):
                         order['id'] = x['order_id']
                         order['status'] = 'filled'
                         history.append(order)
-                        
+
         self.history = history
 
     @threaded
     def set_prices(self, symbols):
 
-        #tickers = []
-
-        #for symbol in symbols:
-
-        #    tickers.append(self.get_ticker(symbol))
-
-        #if tickers:
         prices = self.get_prices()
         if prices:
 
@@ -278,9 +271,6 @@ class Ccex(object):
 class HitBTC(object):
 
     def __init__(self, url, api_url, public_key, secret, timeout=5):
-
-        #from pympler import tracker
-        #self.tr = tracker.SummaryTracker()
 
         self.url = url
         self.api_url = api_url + "/api/2"
@@ -352,7 +342,6 @@ class HitBTC(object):
     def run(self, interval):
 
         self.interval = interval
-        #self.tr.print_diff()
 
         if not self.is_running:
             self.timer = Timer(self.interval, self._run)
