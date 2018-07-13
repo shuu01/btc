@@ -27,7 +27,7 @@ import json
 #from requests.auth import HTTPDigestAuth
 from time import time
 import hmac
-from threading import Thread, Timer, Event
+#from threading import Thread, Timer, Event
 
 class Ccex(object):
 
