@@ -22,12 +22,13 @@
 #
 #
 
-import requests
+import aiohttp
 import json
-#from requests.auth import HTTPDigestAuth
+
 from time import time
 import hmac
-#from threading import Thread, Timer, Event
+import asyncio
+import aiodns
 
 class Ccex(object):
 
@@ -274,9 +275,10 @@ class HitBTC(object):
 
         self.url = url
         self.api_url = api_url + "/api/2"
-        self.session = requests.session()
-        self.session.auth = (public_key, secret)
-        self.timeout = timeout
+        auth = aiohttp.BasicAuth(login=public_key, password=secret)
+        self.session = aiohttp.ClientSession(auth=auth)
+        #self.session.auth = (public_key, secret)
+        #self.timeout = timeout
         self.name = self.__class__.__name__
 
         self.to_update = {}
