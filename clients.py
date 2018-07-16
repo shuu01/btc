@@ -271,7 +271,7 @@ class Ccex(object):
 
 class HitBTC(object):
 
-    ''' Connect to exchange'''
+    ''' Connect to exchange, get some stuff, put stuff into variables. '''
 
     def __init__(
             self,
@@ -288,9 +288,9 @@ class HitBTC(object):
         self.name = self.__class__.__name__
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-
+        
         auth = BasicAuth(login=login, password=password)
-        self.session = ClientSession(auth=auth)
+        self.session = ClientSession(auth=auth, loop=loop)
 
         self.is_running = False
 
@@ -302,7 +302,7 @@ class HitBTC(object):
 
     def __getattr__(self, attr, *args, **kwargs):
 
-        self.logger.error(attr, args, kwargs)
+        self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
 
     def exception(function):
 
@@ -314,41 +314,12 @@ class HitBTC(object):
                     self.logger.error(ret)
                     return
                 return ret
-            except requests.exceptions.RequestException as e:
+            except Exception as e:
                 self.logger.error(e)
 
         return wrapper
 
-    def threaded(function):
-
-        def wrapper(*args, **kwargs):
-
-            return function(*args, **kwargs)
-
-        return wrapper
-
-    #def _run(self):
-
-        #self.is_running = False
-
-        ##self.run(self.interval)
-
-        #if self.to_update.get('orders'):
-            #self.set_orders()
-
-        #if self.to_update.get('history'):
-            #self.set_history()
-
-        #if self.to_update.get('prices'):
-            #self.set_prices(self.to_update.get('prices', []))
-
-        #if self.to_update.get('total'):
-            #base = self.to_update.get('total')
-            #self.set_total_balance(base)
-
-    def run(self, interval=15):
-
-        self.interval = interval
+    async def run(self, interval=15):
 
         if not self.is_running:
 
@@ -435,12 +406,6 @@ class HitBTC(object):
         ''' Set prices for every symbol in symbols '''
 
         tickers = self.get_tickers()
-
-        #for symbol in symbols:
-
-            #tickers.append(self.get_ticker(symbol))
-
-        #if tickers:
 
         for ticker in tickers:
 
