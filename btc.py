@@ -436,7 +436,7 @@ class App(object):
 
                     telegram_send_message(line)
 
-            client.update(prices=set(symbols))
+            #client.update(prices=set(symbols))
 
             self.history[client.name] = history_cl
 
@@ -472,7 +472,7 @@ def create_client(exchange):
         return
 
     try:
-        client = globals()[name](url, api_url, public_key, secret, timeout)
+        client = globals()[name](url=url, api_url=api_url, login=public_key, password=secret, timeout=timeout)
     except Exception as e:
         print(name + str(e))
         return
@@ -522,8 +522,8 @@ def main(args):
         if client:
 
             #print(client.get_symbols())
-            client.update(orders=True, history=True, balance=True, total='BTC')
-            client.run(exchange['refresh'])
+            #client.update(orders=True, history=True, balance=True, total='BTC')
+            client.run(interval=exchange['refresh'])
             clients.append(client)
 
     app = App(clients, path.expanduser(_db), errors)
