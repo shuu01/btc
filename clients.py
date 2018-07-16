@@ -271,6 +271,8 @@ class Ccex(object):
 
 class HitBTC(object):
 
+    ''' Connect to exchange'''
+
     def __init__(
             self,
             url=None,
@@ -325,33 +327,36 @@ class HitBTC(object):
 
         return wrapper
 
-    def _run(self):
+    #def _run(self):
 
-        self.is_running = False
+        #self.is_running = False
 
-        #self.run(self.interval)
+        ##self.run(self.interval)
 
-        asyncio.ensure_future(self.set_balance())
+        #if self.to_update.get('orders'):
+            #self.set_orders()
 
-        if self.to_update.get('orders'):
-            self.set_orders()
+        #if self.to_update.get('history'):
+            #self.set_history()
 
-        if self.to_update.get('history'):
-            self.set_history()
+        #if self.to_update.get('prices'):
+            #self.set_prices(self.to_update.get('prices', []))
 
-        if self.to_update.get('prices'):
-            self.set_prices(self.to_update.get('prices', []))
+        #if self.to_update.get('total'):
+            #base = self.to_update.get('total')
+            #self.set_total_balance(base)
 
-        if self.to_update.get('total'):
-            base = self.to_update.get('total')
-            self.set_total_balance(base)
-
-    def run(self, interval=60):
+    def run(self, interval=15):
 
         self.interval = interval
 
         if not self.is_running:
-            pass
+
+            asyncio.ensure_future(self.set_balance())
+            asyncio.ensure_future(self.set_orders())
+            asyncio.ensure_future(self.set_prices())
+            asyncio.ensure_future(self.set_history())
+            await asyncio.sleep(interval)
 
     def stop(self):
 
@@ -359,42 +364,42 @@ class HitBTC(object):
 
     @exception
     async def get_symbol(self, symbol_code):
-        """ Get symbol """
+        ''' Get symbol '''
         return await self.session.get("%s/public/symbol/%s" % (self.api_url, symbol_code), timeout=self.timeout).json()
 
     @exception
     async def get_symbols(self):
-        """ Get symbols """
+        ''' Get symbols '''
         return await self.session.get("%s/public/symbol" % (self.api_url), timeout=self.timeout).json()
 
     @exception
     async def get_account_balance(self):
-        """ Get main balance """
+        ''' Get main balance '''
         return await self.session.get("%s/account/balance" % self.api_url, timeout=self.timeout).json()
 
     @exception
     async def get_trading_balance(self):
-        """ Get trading balance """
+        ''' Get trading balance '''
         return await self.session.get("%s/trading/balance" % self.api_url, timeout=self.timeout).json()
 
     @exception
     async def get_ticker(self, symbol_code):
-        """ Get ticker """
+        ''' Get ticker '''
         return await self.session.get("%s/public/ticker/%s" % (self.api_url, symbol_code), timeout=self.timeout).json()
 
     @exception
     async def get_tickers(self):
-        """ Get ticker """
+        ''' Get ticker '''
         return await self.session.get("%s/public/ticker/" % self.api_url).json()
 
     @exception
     async def get_active_orders(self):
-        """ Get active orders """
+        ''' Get active orders '''
         return await self.session.get("%s/order" % self.api_url, timeout=self.timeout).json()
 
     @exception
     async def get_history_trades(self):
-        """ Get history trades """
+        ''' Get history trades '''
         return await self.session.get("%s/history/order" % self.api_url, timeout=self.timeout, params={'sort': 'desc', 'limit': 20}).json()
 
     async def set_balance(self):
@@ -426,18 +431,18 @@ class HitBTC(object):
 
             self.history = history_trades
 
-    async def set_prices(self, symbols):
+    async def set_prices(self):
         ''' Set prices for every symbol in symbols '''
 
-        tickers = []
+        tickers = self.get_tickers()
 
-        for symbol in symbols:
+        #for symbol in symbols:
 
-            tickers.append(self.get_ticker(symbol))
+            #tickers.append(self.get_ticker(symbol))
 
-        if tickers:
+        #if tickers:
 
-            for ticker in tickers:
+        for ticker in tickers:
 
                 last = ticker.get('last')
                 symbol = ticker.get('symbol')
