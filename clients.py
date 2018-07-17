@@ -271,7 +271,7 @@ class Ccex(object):
 
 class HitBTC(object):
 
-    ''' Connect to exchange'''
+    ''' Connect to exchange, get some stuff, put stuff into variables. '''
 
     def __init__(
             self,
@@ -290,7 +290,7 @@ class HitBTC(object):
         self.logger.setLevel(logging.DEBUG)
 
         auth = BasicAuth(login=login, password=password)
-        self.session = ClientSession(auth=auth)
+        self.session = ClientSession(auth=auth, loop=loop)
 
         self.is_running = False
 
@@ -302,7 +302,7 @@ class HitBTC(object):
 
     def __getattr__(self, attr, *args, **kwargs):
 
-        self.logger.error(attr, args, kwargs)
+        self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
 
     def exception(function):
 
@@ -415,12 +415,6 @@ class HitBTC(object):
         ''' Set prices for every symbol in symbols '''
 
         tickers = self.get_tickers()
-
-        #for symbol in symbols:
-
-            #tickers.append(self.get_ticker(symbol))
-
-        #if tickers:
 
         for ticker in tickers:
 
