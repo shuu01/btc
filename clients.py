@@ -314,37 +314,20 @@ class HitBTC(object):
                     self.logger.error(ret)
                     return
                 return ret
-            except requests.exceptions.RequestException as e:
+            except Exception as e:
                 self.logger.error(e)
 
         return wrapper
 
-    def threaded(function):
+    async def _run(self):
 
-        def wrapper(*args, **kwargs):
+        while True:
 
-            return function(*args, **kwargs)
-
-        return wrapper
-
-    #def _run(self):
-
-        #self.is_running = False
-
-        ##self.run(self.interval)
-
-        #if self.to_update.get('orders'):
-            #self.set_orders()
-
-        #if self.to_update.get('history'):
-            #self.set_history()
-
-        #if self.to_update.get('prices'):
-            #self.set_prices(self.to_update.get('prices', []))
-
-        #if self.to_update.get('total'):
-            #base = self.to_update.get('total')
-            #self.set_total_balance(base)
+            asyncio.ensure_future(self.set_balance())
+            asyncio.ensure_future(self.set_orders())
+            asyncio.ensure_future(self.set_prices())
+            asyncio.ensure_future(self.set_history())
+            await asyncio.sleep(self.interval)
 
     def run(self, interval=15):
 
@@ -352,11 +335,8 @@ class HitBTC(object):
 
         if not self.is_running:
 
-            asyncio.ensure_future(self.set_balance())
-            asyncio.ensure_future(self.set_orders())
-            asyncio.ensure_future(self.set_prices())
-            asyncio.ensure_future(self.set_history())
-            await asyncio.sleep(interval)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._run())
 
     def stop(self):
 

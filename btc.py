@@ -434,7 +434,7 @@ class App(object):
                         order['price'],
                     )
 
-                    telegram_send_message(line)
+                    #telegram_send_message(line)
 
             #client.update(prices=set(symbols))
 
