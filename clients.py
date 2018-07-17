@@ -23,12 +23,12 @@
 #
 
 from aiohttp import BasicAuth, ClientSession
-import json
+#import json
 import logging
 from time import time
 import hmac
 import asyncio
-import aiodns
+#import aiodns
 
 class Ccex(object):
 
@@ -339,8 +339,6 @@ class HitBTC(object):
             await asyncio.sleep(interval)
 
     def run(self, interval=15):
-
-        #self.interval = interval
 
         if not self.is_running:
             self.is_running = True
