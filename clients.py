@@ -284,13 +284,13 @@ class HitBTC(object):
 
         self.url = url
         self.api_url = api_url + "/api/2"
-        self.timeout = timeout
         self.name = self.__class__.__name__
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
         auth = BasicAuth(login=login, password=password)
-        self.session = ClientSession(auth=auth, loop=loop)
+        self.session = ClientSession(auth=auth)
+        self.timeout = timeout
 
         self.is_running = False
 
@@ -311,11 +311,13 @@ class HitBTC(object):
             try:
                 ret = function(*args, **kwargs)
                 if 'error' in ret:
-                    self.logger.error(ret)
+                    print(ret)
+                    #self.logger.error(ret)
                     return
                 return ret
             except Exception as e:
-                self.logger.error(e)
+                #self.logger.error(e)
+                print(e)
 
         return wrapper
 
@@ -342,42 +344,42 @@ class HitBTC(object):
 
         pass
 
-    @exception
+    #@exception
     async def get_symbol(self, symbol_code):
         ''' Get symbol '''
         return await self.session.get("%s/public/symbol/%s" % (self.api_url, symbol_code), timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_symbols(self):
         ''' Get symbols '''
         return await self.session.get("%s/public/symbol" % (self.api_url), timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_account_balance(self):
         ''' Get main balance '''
         return await self.session.get("%s/account/balance" % self.api_url, timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_trading_balance(self):
         ''' Get trading balance '''
         return await self.session.get("%s/trading/balance" % self.api_url, timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_ticker(self, symbol_code):
         ''' Get ticker '''
         return await self.session.get("%s/public/ticker/%s" % (self.api_url, symbol_code), timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_tickers(self):
         ''' Get ticker '''
         return await self.session.get("%s/public/ticker/" % self.api_url).json()
 
-    @exception
+    #@exception
     async def get_active_orders(self):
         ''' Get active orders '''
         return await self.session.get("%s/order" % self.api_url, timeout=self.timeout).json()
 
-    @exception
+    #@exception
     async def get_history_trades(self):
         ''' Get history trades '''
         return await self.session.get("%s/history/order" % self.api_url, timeout=self.timeout, params={'sort': 'desc', 'limit': 20}).json()
@@ -385,7 +387,7 @@ class HitBTC(object):
     async def set_balance(self):
         ''' Set currency list with positive available or reserved balance '''
 
-        balances = self.get_trading_balance()
+        balances = await self.get_trading_balance()
 
         if balances:
             self.balance = {}
@@ -397,7 +399,7 @@ class HitBTC(object):
     async def set_orders(self):
         ''' Set active orders for exchange '''
 
-        orders = self.get_active_orders()
+        orders = await self.get_active_orders()
 
         if orders:
             self.orders = orders
