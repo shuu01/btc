@@ -348,6 +348,7 @@ class HitBTC(object):
 
         if self.is_running:
             self.loop.stop()
+            self.is_running = False
 
     async def get_response(self, url=None, params={}):
 
@@ -391,14 +392,14 @@ class HitBTC(object):
         if orders:
             self.orders = orders
 
-    async def set_history(self):
+    async def set_history(self, limit=20):
 
         ''' Set filled orders for exchange '''
 
         self.logger.info('set history')
 
         url = "%s/history/order" % self.api_url
-        params={'sort': 'desc', 'limit': 20}
+        params={'sort': 'desc', 'limit': limit}
 
         history_trades = await self.get_response(url=url, params=params)
 
