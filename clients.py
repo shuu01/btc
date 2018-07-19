@@ -317,7 +317,7 @@ class HitBTC(object):
             history = await self.get_history()
             prices = await self.get_prices()
 
-            total = calculate_total_balance(balance, prices)
+            total = self.calculate_total_balance(balance, prices)
 
             ret = {
                 'balance': balance,
@@ -421,7 +421,7 @@ class HitBTC(object):
 
         return prices
 
-    async def calculate_total_balance(self, balance, prices, base='BTC'):
+    def calculate_total_balance(self, balance, prices, base='BTC'):
 
         ''' Calculate total balance in base currency '''
 
