@@ -308,34 +308,28 @@ class HitBTC(object):
 
         self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
 
-    async def callback(self):
-
-        pass
-
-    async def _run(self, interval):
+    async def _run(self, interval, callback):
 
         while True:
 
-            balance = await self.gather()
-            future.add_done_callback(self.callback)
+            balance = await self.get_balance()
+            orders = await self.get_orders()
+            history = await self.get_history()
+            prices = await self.get_prices()
+            ret = {
+                'balance': balance,
+                'orders': orders,
+                'history': history,
+                'prices': prices,
+            }
+            callback(ret)
             await asyncio.sleep(interval)
 
-    async def gather(self):
-
-        tasks = (
-            self.set_balance(),
-            )
-
-        done, pending = await asyncio.wait(tasks)
-
-        for task in done:
-            print(task.result())
-
-    def run(self, interval=15):
+    def run(self, interval=15, callback=None):
 
         if not self.is_running:
             self.is_running = True
-            self.loop.run_until_complete(self._run(interval))
+            self.loop.run_until_complete(self._run(interval, callback))
 
     def stop(self):
 
@@ -355,45 +349,43 @@ class HitBTC(object):
         else:
             return resp
 
-    async def set_balance(self):
+    async def get_balance(self):
 
-        ''' Set currency list with positive available or reserved balance '''
+        ''' Return currency list with positive available or reserved balance '''
 
-        self.logger.info('set balance')
+        self.logger.info('get balance')
 
         url = "%s/trading/balance" % self.api_url
 
         balances = await self.get_response(url=url)
 
         if balances:
-            #self.balance = {}
             ret = {}
             for balance in balances:
                 currency = balance['currency']
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
-                    #self.balance[currency] = balance
                     ret[currency] = balance
 
         return ret
 
-    async def set_orders(self):
+    async def get_orders(self):
 
-        ''' Set active orders for exchange '''
+        ''' Return active orders for exchange '''
 
-        self.logger.info('set orders')
+        self.logger.info('get orders')
 
         url = "%s/order" % self.api_url
 
         orders = await self.get_response(url)
 
         if orders:
-            self.orders = orders
+            return orders
 
-    async def set_history(self, limit=20):
+    async def get_history(self, limit=20):
 
-        ''' Set filled orders for exchange '''
+        ''' Return filled orders for exchange '''
 
-        self.logger.info('set history')
+        self.logger.info('get history')
 
         url = "%s/history/order" % self.api_url
         params={'sort': 'desc', 'limit': limit}
@@ -402,24 +394,28 @@ class HitBTC(object):
 
         if history_trades:
 
-            self.history = history_trades
+            return history_trades
 
-    async def set_prices(self):
+    async def get_prices(self):
 
-        ''' Set prices for every symbol in symbols '''
+        ''' Return prices for every symbol in symbols '''
 
-        self.logger.info('set prices')
+        self.logger.info('get prices')
 
         url = "%s/public/ticker/" % self.api_url
 
         tickers = await self.get_response(url)
+
+        prices = {}
 
         for ticker in tickers:
 
             last = ticker.get('last')
             symbol = ticker.get('symbol')
             if symbol and last:
-                self.prices[symbol] = last
+                prices[symbol] = last
+
+        return prices
 
     async def set_total_balance(self, base='BTC'):
 
