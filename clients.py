@@ -326,7 +326,10 @@ class HitBTC(object):
                 'prices': prices,
                 'total': total,
             }
-            callback(ret)
+
+            if callback:
+                callback(ret)
+
             await asyncio.sleep(interval)
 
     def run(self, interval=15, callback=None):
