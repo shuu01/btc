@@ -296,53 +296,31 @@ class HitBTC(object):
         self.session = ClientSession(loop=self.loop, auth=auth)
         self.timeout = timeout
 
-        self.is_running = False
-
-        self.balance = {}
-        self.orders = []
-        self.history = []
-        self.prices = {}
-        self.total = 0
-
     def __getattr__(self, attr, *args, **kwargs):
 
         self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
 
-    async def _run(self, interval, callback):
+    async def get_data(self, callback=None):
 
-        while True:
+        balance = await self.get_balance()
+        orders = await self.get_orders()
+        history = await self.get_history()
+        prices = await self.get_prices()
 
-            balance = await self.get_balance()
-            orders = await self.get_orders()
-            history = await self.get_history()
-            prices = await self.get_prices()
+        total = self.calculate_total_balance(balance, prices)
 
-            total = self.calculate_total_balance(balance, prices)
+        data = {
+            'balance': balance,
+            'orders': orders,
+            'history': history,
+            'prices': prices,
+            'total': total,
+        }
 
-            ret = {
-                'balance': balance,
-                'orders': orders,
-                'history': history,
-                'prices': prices,
-                'total': total,
-            }
-
-            if callback:
-                callback(ret)
-
-            await asyncio.sleep(interval)
-
-    def run(self, interval=15, callback=None):
-
-        if not self.is_running:
-            self.is_running = True
-            self.loop.run_until_complete(self._run(interval, callback))
-
-    def stop(self):
-
-        if self.is_running:
-            self.loop.close()
-            self.is_running = False
+        if callback:
+            callback(data)
+        else:
+            return data
 
     async def get_response(self, url=None, params={}):
 
