@@ -23,12 +23,10 @@
 #
 
 from aiohttp import BasicAuth, ClientSession
-#import json
 import logging
 from time import time
 import hmac
 import asyncio
-#import aiodns
 
 class Ccex(object):
 
@@ -310,33 +308,28 @@ class HitBTC(object):
 
         self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
 
-    def exception(function):
+    async def callback(self):
 
-        def wrapper(*args, **kwargs):
-
-            try:
-                ret = function(*args, **kwargs)
-                if 'error' in ret:
-                    print(ret)
-                    #self.logger.error(ret)
-                    return
-                return ret
-            except Exception as e:
-                #self.logger.error(e)
-                print(e)
-
-        return wrapper
+        pass
 
     async def _run(self, interval):
 
         while True:
 
-            asyncio.ensure_future(self.set_balance())
-            asyncio.ensure_future(self.set_orders())
-            asyncio.ensure_future(self.set_prices())
-            asyncio.ensure_future(self.set_history())
-            asyncio.ensure_future(self.set_total_balance(base='BTC'))
+            balance = await self.gather()
+            future.add_done_callback(self.callback)
             await asyncio.sleep(interval)
+
+    async def gather(self):
+
+        tasks = (
+            self.set_balance(),
+            )
+
+        done, pending = await asyncio.wait(tasks)
+
+        for task in done:
+            print(task.result())
 
     def run(self, interval=15):
 
@@ -347,7 +340,7 @@ class HitBTC(object):
     def stop(self):
 
         if self.is_running:
-            self.loop.stop()
+            self.loop.close()
             self.is_running = False
 
     async def get_response(self, url=None, params={}):
@@ -373,11 +366,15 @@ class HitBTC(object):
         balances = await self.get_response(url=url)
 
         if balances:
-            self.balance = {}
+            #self.balance = {}
+            ret = {}
             for balance in balances:
                 currency = balance['currency']
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
-                    self.balance[currency] = balance
+                    #self.balance[currency] = balance
+                    ret[currency] = balance
+
+        return ret
 
     async def set_orders(self):
 
