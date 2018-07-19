@@ -316,11 +316,15 @@ class HitBTC(object):
             orders = await self.get_orders()
             history = await self.get_history()
             prices = await self.get_prices()
+
+            total = calculate_total_balance(balance, prices)
+
             ret = {
                 'balance': balance,
                 'orders': orders,
                 'history': history,
                 'prices': prices,
+                'total': total,
             }
             callback(ret)
             await asyncio.sleep(interval)
@@ -417,7 +421,7 @@ class HitBTC(object):
 
         return prices
 
-    async def set_total_balance(self, base='BTC'):
+    async def calculate_total_balance(self, balance, prices, base='BTC'):
 
         ''' Calculate total balance in base currency '''
 
@@ -425,9 +429,9 @@ class HitBTC(object):
 
         total = 0
 
-        if self.prices and self.balance:
+        if prices and balance:
 
-            for currency, values in self.balance.items():
+            for currency, values in balance.items():
 
                 available = float(values['available'])
                 reserved = float(values['reserved'])
@@ -435,8 +439,8 @@ class HitBTC(object):
                 if currency == base:
                     last = 1
                 else:
-                    last = float(self.prices.get(currency+base, 0))
+                    last = float(prices.get(currency+base, 0))
 
                 total += (available + reserved)*last
 
-        self.total = total
+        return total
