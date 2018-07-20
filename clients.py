@@ -22,7 +22,7 @@
 #
 #
 
-from aiohttp import BasicAuth, ClientSession
+from aiohttp import BasicAuth, ClientSession, Request
 import logging
 from time import time
 import hmac
@@ -30,102 +30,66 @@ import asyncio
 
 class Ccex(object):
 
-    def __init__(self, url, api_url, public_key, secret, timeout=5):
+    def __init__(
+            self,
+            url="https://c-cex.com",
+            api_url="https://c-cex.com/t",
+            login=None,
+            password=None,
+            timeout=5,
+            loop=None,
+        ):
 
         self.url = url
         self.api_url = api_url
-        self.public_key = public_key
-        self.secret = secret
-        self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'CCEX_API_WRAPPER'})
-        self.timeout = timeout
         self.name = self.__class__.__name__
+        self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(logging.DEBUG)
 
-        self.to_update = {}
-        self.is_running = False
+        if not loop:
+            loop = asyncio.get_event_loop()
 
-        self.balance = {}
-        self.orders = []
-        self.history = []
-        self.prices = {}
-        self.total = 0
+        self.loop = loop
 
-    def threaded(function):
+        headers = {'User-Agent': 'CCEX_API_WRAPPER'}
+        self.session = ClientSession(loop=self.loop, headers=headers)
+        self.timeout = timeout
 
-        def wrapper(*args, **kwargs):
+    async def get_response(
+            self,
+            url,
+            params={},
+            headers=None,
+            auth=None,
+        ):
 
-            thread = Thread(target=function, args=args, kwargs=kwargs)
-            thread.start()
-            return thread
+        params.update({
+            'apikey': self.public_key,
+            'nonce': int(time()),
+        })
 
-        return wrapper
-
-    def request(self, url, params={}, headers=None, auth=None):
-
-        params.update({'apikey': self.public_key, 'nonce': int(time())})
-
-        req = requests.Request(
-                method='GET',
-                url=url,
-                params=params,
-                headers=headers,
-                )
-
-        prep_req = req.prepare()
+        request = Request(
+            method='GET',
+            url=url,
+            params=params,
+            headers=headers,
+        )
 
         if auth:
             signature = hmac.new(
-            self.secret.encode('utf-8'),
-            prep_req.url.encode('utf-8'),
-            'sha512',
+                self.secret.encode('utf-8'),
+                prep_req.url.encode('utf-8'),
+                'sha512',
             ).hexdigest()
 
-            prep_req.headers['apisign'] = signature
+            request.headers['apisign'] = signature
 
-        try:
-            res = self.session.send(prep_req, timeout=self.timeout)
-            return res.json()
-        except Exception as e:
-            print(e)
+        res = await self.session.send(request, timeout=self.timeout)
+        res = await res.json()
 
-    def _run(self):
+    async def close(self):
 
-        self.is_running = False
-
-        self.run(self.interval)
-
-        if self.to_update.get('balance'):
-            self.set_balance()
-
-        if self.to_update.get('orders'):
-            self.set_orders()
-
-        if self.to_update.get('history'):
-            self.set_history()
-
-        if self.to_update.get('prices'):
-            self.set_prices(self.to_update.get('prices', []))
-
-        if self.to_update.get('total'):
-            base = self.to_update.get('total')
-            self.set_total_balance(base)
-
-    def run(self, interval):
-
-        self.interval = interval
-
-        if not self.is_running:
-            self.timer = Timer(self.interval, self._run)
-            self.timer.start()
-            self.is_running = True
-
-    def stop(self):
-
-        self.timer.cancel()
-
-    def update(self, **kwargs):
-
-        self.to_update.update(kwargs)
+        self.session.close
 
     def get_names(self):
         ''' Get names for symbols '''
@@ -180,25 +144,35 @@ class Ccex(object):
     def __getattr__(self, attr, *args, **kwargs):
         print(attr, args, kwargs)
 
-    @threaded
-    def set_balance(self):
+    async def get_balance(self):
 
-        balances = self.get_balances()
+        balances = await self.get_response(
+            "%s/api.html" % (self.api_url),
+            params={'a': 'getbalances'},
+            auth=True
+        )
+        ret = {}
 
         if balances:
 
             for balance in balances:
                 currency = balance['Currency']
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
-                    self.balance[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
+                    ret[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
 
-    @threaded
-    def set_orders(self):
+        return ret
 
-        orders = self.get_active_orders()
+    async def get_orders(self):
+
+        orders = await self.get_response(
+            "%s/api.html" % (self.api_url),
+            params={'a': 'getopenorders', 'market': pair},
+            auth=True
+        )
+        ret = []
 
         if orders:
-            self.orders = []
+
             for x in orders:
                 order = {}
                 order['symbol'] = x['Exchange']
@@ -206,15 +180,14 @@ class Ccex(object):
                 order['quantity'] = x['Quantity']
                 order['price'] = "{:.9f}".format(x['Limit']).rstrip('0')
                 order['id'] = x['OrderUuid']
-                self.orders.append(order)
+                ret.append(order)
 
-    @threaded
-    def set_history(self, base='BTC'):
+        return ret
 
-        if not self.balance:
-            return
+    async def get_history(self, base='BTC'):
 
         history = []
+
         for symbol in self.balance:
             pair = symbol + '-' + base
             if symbol != base:
@@ -232,26 +205,32 @@ class Ccex(object):
 
         self.history = history
 
-    @threaded
-    def set_prices(self, symbols):
+    async def get_prices(self, symbols):
 
-        prices = self.get_prices()
+        ret = {}
+        prices = await self.get_request("%s/prices.json" % (self.api_url))
+
         if prices:
 
             for symbol in symbols:
-                price = prices.get(symbol.lower(), {}).get('lastprice')
-                if price:
-                    self.prices[symbol] = "{:.9f}".format(price).rstrip('0')
 
-    @threaded
-    def set_total_balance(self, base):
+                price = prices.get(symbol.lower(), {}).get('lastprice')
+
+                if price:
+
+                    ret[symbol] = "{:.9f}".format(price).rstrip('0')
+
+        return ret
+
+    def calculate_total_balance(self, balance, prices, base='BTC'):
+
         ''' Calculate total balance in base currency '''
 
         total = 0
 
-        if self.prices and self.balance:
+        if prices and balance:
 
-            for currency, values in self.balance.items():
+            for currency, values in balance.items():
 
                 available = float(values['available'])
                 reserved = float(values['reserved'])
@@ -261,11 +240,11 @@ class Ccex(object):
                     available = 0
                 else:
                     pair = currency + '-' + base
-                    last = float(self.prices.get(pair, 0))
+                    last = float(prices.get(pair, 0))
 
                 total += (available + reserved)*last
 
-        self.total = total
+        return total
 
 class HitBTC(object):
 
@@ -299,6 +278,10 @@ class HitBTC(object):
     def __getattr__(self, attr, *args, **kwargs):
 
         self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
+
+    async def close(self):
+
+        await self.session.close()
 
     async def get_data(self, callback=None):
 
