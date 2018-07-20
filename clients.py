@@ -22,7 +22,7 @@
 #
 #
 
-from aiohttp import BasicAuth, ClientSession, Request
+from aiohttp import BasicAuth, ClientSession, request
 import logging
 from time import time
 import hmac
@@ -68,7 +68,7 @@ class Ccex(object):
             'nonce': int(time()),
         })
 
-        request = Request(
+        req = request(
             method='GET',
             url=url,
             params=params,
@@ -78,13 +78,13 @@ class Ccex(object):
         if auth:
             signature = hmac.new(
                 self.secret.encode('utf-8'),
-                prep_req.url.encode('utf-8'),
+                req.url.encode('utf-8'),
                 'sha512',
             ).hexdigest()
 
-            request.headers['apisign'] = signature
+            req.headers['apisign'] = signature
 
-        res = await self.session.send(request, timeout=self.timeout)
+        res = await self.session.send(req, timeout=self.timeout)
         res = await res.json()
 
     async def close(self):
@@ -151,6 +151,7 @@ class Ccex(object):
             params={'a': 'getbalances'},
             auth=True
         )
+
         ret = {}
 
         if balances:
@@ -162,13 +163,14 @@ class Ccex(object):
 
         return ret
 
-    async def get_orders(self):
+    async def get_orders(self, pair=None):
 
         orders = await self.get_response(
             "%s/api.html" % (self.api_url),
             params={'a': 'getopenorders', 'market': pair},
             auth=True
         )
+
         ret = []
 
         if orders:
@@ -184,26 +186,28 @@ class Ccex(object):
 
         return ret
 
-    async def get_history(self, base='BTC'):
+    async def get_history(self, pair=None, count=20):
 
-        history = []
+        trade = self.get_response(
+            "%s/api.html" % (self.api_url),
+            params={'a': 'getorderhistory', 'market': pair, 'count': count},
+            auth=True,
+        )
 
-        for symbol in self.balance:
-            pair = symbol + '-' + base
-            if symbol != base:
-                trade = self.get_mytrades(symbol+'-'+base)
-                if trade:
-                    for x in trade:
-                        order = {}
-                        order['symbol'] = x['marketid']
-                        order['side'] = x['tradetype'].lower()
-                        order['quantity'] = x['quantity']
-                        order['price'] = x['tradeprice']
-                        order['id'] = x['order_id']
-                        order['status'] = 'filled'
-                        history.append(order)
+        ret = []
 
-        self.history = history
+        if trade:
+           for x in trade:
+                order = {}
+                order['symbol'] = x['Exchange']
+                order['side'] = 'buy' if x['OrderType'] == 'LIMIT_BUY' else 'sell'
+                order['quantity'] = x['Quantity']
+                order['price'] = x['Price']
+                order['id'] = x['OrderUuid']
+                #order['status'] = 'filled'
+                ret.append(order)
+
+        return ret
 
     async def get_prices(self, symbols):
 
@@ -407,4 +411,4 @@ class HitBTC(object):
 
                 total += (available + reserved)*last
 
-        return total
+        return "{:.9f}".format(total)
