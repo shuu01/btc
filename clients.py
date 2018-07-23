@@ -89,62 +89,14 @@ class Ccex(object):
 
     async def close(self):
 
-        self.session.close
-
-    def get_names(self):
-        ''' Get names for symbols '''
-        return self.request("%s/coinnames.json" % (self.api_url))
-
-    def get_prices(self):
-        ''' Get prices for pairs'''
-        return self.request("%s/prices.json" % (self.api_url))
-
-    def get_pairs(self):
-        ''' Get available pairs '''
-        res = self.request("%s/pairs.json" % (self.api_url))
-        if res:
-            return res.get('pairs')
-
-    def get_ticker(self, pair):
-        ''' Get ticker for pair '''
-        res = self.request("%s/%s.json" % (self.api_url, pair))
-        if res:
-            return res#.get('ticker')
-
-    def get_balances(self):
-        ''' Retrieve all balances from account '''
-        res = self.request("%s/api.html" % (self.api_url), params={'a': 'getbalances'}, auth=True)
-        if res:
-            return res.get('result')
-
-    def get_balance(self, symbol):
-        ''' Get balance for symbol '''
-        res = self.request("%s/api.html" % (self.api_url), params={'a': 'getbalance', 'currency': symbol}, auth=True)
-        if res:
-            return res.get('result')
-
-    def get_active_orders(self, pair=None):
-        ''' Get active orders '''
-        res = self.request("%s/api.html" % (self.api_url), params={'a': 'getopenorders', 'market': pair}, auth=True)
-        if res:
-            return res.get('result')
-
-    def get_order_history(self, pair=None, count=None):
-
-        res = self.request("%s/api.html" % (self.api_url), params={'a': 'getorderhistory', 'market': pair, 'count': count}, auth=True)
-        if res:
-            return res.get('result')
-
-    def get_mytrades(self, pair):
-
-        res = self.request("%s/api.html" % (self.api_url), params={'a': 'mytrades', 'marketid': pair}, auth=True)
-        if res:
-            return res.get('return')
+        self.session.close()
 
     def __getattr__(self, attr, *args, **kwargs):
-        print(attr, args, kwargs)
+        self.logger.info(attr, args, kwargs)
 
     async def get_balance(self):
+
+        ''' Return non-zero balance '''
 
         balances = await self.get_response(
             "%s/api.html" % (self.api_url),
@@ -164,6 +116,8 @@ class Ccex(object):
         return ret
 
     async def get_orders(self, pair=None):
+
+        ''' Return active orders '''
 
         orders = await self.get_response(
             "%s/api.html" % (self.api_url),
@@ -188,6 +142,8 @@ class Ccex(object):
 
     async def get_history(self, pair=None, count=20):
 
+        ''' Return order history '''
+
         trade = self.get_response(
             "%s/api.html" % (self.api_url),
             params={'a': 'getorderhistory', 'market': pair, 'count': count},
@@ -210,6 +166,8 @@ class Ccex(object):
         return ret
 
     async def get_prices(self, symbols):
+
+        ''' Return prices '''
 
         ret = {}
         prices = await self.get_request("%s/prices.json" % (self.api_url))
@@ -252,7 +210,7 @@ class Ccex(object):
 
 class HitBTC(object):
 
-    ''' Connect to exchange, get some stuff, put stuff into variables. '''
+    ''' Connect to exchange, get some stuff '''
 
     def __init__(
             self,
@@ -312,9 +270,12 @@ class HitBTC(object):
     async def get_response(self, url=None, params={}):
 
         ''' Get response '''
-
-        resp = await self.session.get(url, params=params, timeout=self.timeout)
-        resp = await resp.json()
+        try:
+            resp = await self.session.get(url, params=params, timeout=self.timeout)
+            resp = await resp.json()
+        except Exception as e:
+            self.logger.error(e)
+            return
 
         if 'error' in resp:
             self.logger.error(resp)
@@ -338,7 +299,7 @@ class HitBTC(object):
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-        return ret
+        return {'balance': ret}
 
     async def get_orders(self):
 
@@ -351,7 +312,7 @@ class HitBTC(object):
         orders = await self.get_response(url)
 
         if orders:
-            return orders
+            return {'orders': orders}
 
     async def get_history(self, limit=20):
 
@@ -366,11 +327,11 @@ class HitBTC(object):
 
         if history_trades:
 
-            return history_trades
+            return {'history': history_trades}
 
     async def get_prices(self):
 
-        ''' Return prices for every symbol in symbols '''
+        ''' Return prices '''
 
         self.logger.info('get prices')
 
@@ -387,7 +348,7 @@ class HitBTC(object):
             if symbol and last:
                 prices[symbol] = last
 
-        return prices
+        return {'prices': prices}
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
