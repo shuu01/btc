@@ -247,20 +247,31 @@ class HitBTC(object):
 
     async def get_data(self, callback=None):
 
-        balance = await self.get_balance()
-        orders = await self.get_orders()
-        history = await self.get_history()
-        prices = await self.get_prices()
+        futures = [
+            asyncio.ensure_future(self.get_balance()),
+            asyncio.ensure_future(self.get_orders()),
+            asyncio.ensure_future(self.get_history()),
+            asyncio.ensure_future(self.get_prices()),
+        ]
 
-        total = self.calculate_total_balance(balance, prices)
+        done, pending = await asyncio.wait(futures)
 
-        data = {
-            'balance': balance,
-            'orders': orders,
-            'history': history,
-            'prices': prices,
-            'total': total,
-        }
+        data = {}
+
+        for future in done:
+            data.update(future.result())
+
+        total = self.calculate_total_balance(data.get('balance'), data.get('prices'))
+
+        data['total'] = total
+
+        #data = {
+        #    'balance': balance,
+        #    'orders': orders,
+        #    'history': history,
+        #    'prices': prices,
+        #    'total': total,
+        #}
 
         if callback:
             callback(data)
@@ -272,15 +283,17 @@ class HitBTC(object):
         ''' Get response '''
         try:
             resp = await self.session.get(url, params=params, timeout=self.timeout)
-            resp = await resp.json()
         except Exception as e:
             self.logger.error(e)
             return
-
-        if 'error' in resp:
-            self.logger.error(resp)
         else:
-            return resp
+            jresp = await resp.json()
+            resp.close()
+
+        if 'error' in jresp:
+            self.logger.error(jresp)
+        else:
+            return jresp
 
     async def get_balance(self):
 
@@ -299,7 +312,7 @@ class HitBTC(object):
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-        return {'balance': ret}
+            return {'balance': ret}
 
     async def get_orders(self):
 
@@ -326,7 +339,6 @@ class HitBTC(object):
         history_trades = await self.get_response(url=url, params=params)
 
         if history_trades:
-
             return {'history': history_trades}
 
     async def get_prices(self):
@@ -348,7 +360,8 @@ class HitBTC(object):
             if symbol and last:
                 prices[symbol] = last
 
-        return {'prices': prices}
+        if prices:
+            return {'prices': prices}
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
