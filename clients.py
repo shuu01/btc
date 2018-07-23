@@ -247,6 +247,14 @@ class HitBTC(object):
 
     async def get_data(self, callback=None):
 
+        '''data = {
+            'balance': dict,
+            'orders': list,
+            'history': list,
+            'prices': dict,
+            'total': str,
+        }'''
+
         futures = [
             asyncio.ensure_future(self.get_balance()),
             asyncio.ensure_future(self.get_orders()),
@@ -264,14 +272,6 @@ class HitBTC(object):
         total = self.calculate_total_balance(data.get('balance'), data.get('prices'))
 
         data['total'] = total
-
-        #data = {
-        #    'balance': balance,
-        #    'orders': orders,
-        #    'history': history,
-        #    'prices': prices,
-        #    'total': total,
-        #}
 
         if callback:
             callback(data)
