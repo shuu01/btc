@@ -269,7 +269,7 @@ class HitBTC(object):
         for future in done:
             data.update(future.result())
 
-        total = self.calculate_total_balance(data.get('balance'), data.get('prices'))
+        total = self.calculate_total_balance(balance=data.get('balance'), prices=data.get('prices'))
 
         data['total'] = total
 
@@ -363,7 +363,7 @@ class HitBTC(object):
         if prices:
             return {'prices': prices}
 
-    def calculate_total_balance(self, balance, prices, base='BTC'):
+    def calculate_total_balance(self, balance=None, prices=None, base='BTC'):
 
         ''' Calculate total balance in base currency '''
 
