@@ -42,6 +42,8 @@ class Ccex(object):
 
         self.url = url
         self.api_url = api_url
+        self.login = login
+        self.password = password
         self.name = self.__class__.__name__
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logging.DEBUG)
@@ -57,14 +59,14 @@ class Ccex(object):
 
     async def get_response(
             self,
-            url,
+            url=None,
             params={},
             headers=None,
             auth=None,
         ):
 
         params.update({
-            'apikey': self.public_key,
+            'apikey': self.login,
             'nonce': int(time()),
         })
 
@@ -77,7 +79,7 @@ class Ccex(object):
 
         if auth:
             signature = hmac.new(
-                self.secret.encode('utf-8'),
+                self.password.encode('utf-8'),
                 req.url.encode('utf-8'),
                 'sha512',
             ).hexdigest()
@@ -92,19 +94,53 @@ class Ccex(object):
         self.session.close()
 
     def __getattr__(self, attr, *args, **kwargs):
-        self.logger.info(attr, args, kwargs)
+
+        self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
+
+    async def get_data(self, callback=None):
+
+        '''data = {
+            'balance': dict,
+            'orders': list,
+            'history': list,
+            'prices': dict,
+            'total': str,
+        }'''
+
+        futures = [
+            asyncio.ensure_future(self.get_balance()),
+            asyncio.ensure_future(self.get_orders()),
+            asyncio.ensure_future(self.get_history()),
+            asyncio.ensure_future(self.get_prices()),
+        ]
+
+        done, pending = await asyncio.wait(futures)
+
+        data = {}
+
+        for future in done:
+            data.update(future.result())
+
+        total = self.calculate_total_balance(balance=data.get('balance'), prices=data.get('prices'))
+
+        data['total'] = total
+
+        if callback:
+            callback(data)
+        else:
+            return data
 
     async def get_balance(self):
 
         ''' Return non-zero balance '''
 
+        ret = {}
+
         balances = await self.get_response(
-            "%s/api.html" % (self.api_url),
+            url="%s/api.html" % (self.api_url),
             params={'a': 'getbalances'},
             auth=True
         )
-
-        ret = {}
 
         if balances:
 
@@ -113,19 +149,19 @@ class Ccex(object):
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
                     ret[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
 
-        return ret
+            return ret
 
     async def get_orders(self, pair=None):
 
         ''' Return active orders '''
+
+        ret = []
 
         orders = await self.get_response(
             "%s/api.html" % (self.api_url),
             params={'a': 'getopenorders', 'market': pair},
             auth=True
         )
-
-        ret = []
 
         if orders:
 
@@ -138,11 +174,13 @@ class Ccex(object):
                 order['id'] = x['OrderUuid']
                 ret.append(order)
 
-        return ret
+            return ret
 
     async def get_history(self, pair=None, count=20):
 
         ''' Return order history '''
+
+        ret = []
 
         trade = self.get_response(
             "%s/api.html" % (self.api_url),
@@ -150,10 +188,9 @@ class Ccex(object):
             auth=True,
         )
 
-        ret = []
-
         if trade:
-           for x in trade:
+
+            for x in trade:
                 order = {}
                 order['symbol'] = x['Exchange']
                 order['side'] = 'buy' if x['OrderType'] == 'LIMIT_BUY' else 'sell'
@@ -163,7 +200,7 @@ class Ccex(object):
                 #order['status'] = 'filled'
                 ret.append(order)
 
-        return ret
+            return ret
 
     async def get_prices(self, symbols):
 
@@ -182,7 +219,7 @@ class Ccex(object):
 
                     ret[symbol] = "{:.9f}".format(price).rstrip('0')
 
-        return ret
+            return ret
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
