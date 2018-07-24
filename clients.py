@@ -71,19 +71,19 @@ class Ccex(object):
             'nonce': int(time()),
         })
 
-        url = str(URL(url).with_query(params))
+        url = URL(url).with_query(params)
 
         if auth:
             signature = hmac.new(
                 key=self.password.encode('utf-8'),
-                msg=url.encode(),
+                msg=str(url).encode(),
                 digestmod='sha512',
             ).hexdigest()
 
             headers['apisign'] = signature
 
         try:
-            resp = await self.session.get(url, headers=headers, timeout=self.timeout)
+            resp = await self.session.get(str(url), headers=headers, timeout=self.timeout)
         except Exception as e:
             self.logger.error(e)
             return
@@ -93,6 +93,9 @@ class Ccex(object):
 
         if not jresp:
             return
+
+        if url.path.endswith('json'):
+            return jresp
 
         if jresp.get('success'):
             return jresp.get('result')
@@ -216,19 +219,21 @@ class Ccex(object):
 
         ''' Return prices '''
 
+        ret = {}
+
         prices = await self.get_response("%s/prices.json" % (self.api_url))
 
-        #if prices:
+        if prices:
 
-        #    for symbol in symbols:
+            for symbol, values in prices.items():
 
-        #        price = prices.get(symbol.lower(), {}).get('lastprice')
+                price = values.get('lastprice')
 
-        #        if price:
+                if price:
 
-        #            ret[symbol] = "{:.9f}".format(price).rstrip('0')
+                    ret[symbol] = "{:.9f}".format(price).rstrip('0')
 
-        return {'prices': prices}
+        return {'prices': ret}
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
