@@ -22,11 +22,12 @@
 #
 #
 
-from aiohttp import BasicAuth, ClientSession, request
+from aiohttp import BasicAuth, ClientSession, ClientRequest
 import logging
 from time import time
 import hmac
 import asyncio
+from yarl import URL
 
 class Ccex(object):
 
@@ -61,7 +62,7 @@ class Ccex(object):
             self,
             url=None,
             params={},
-            headers=None,
+            headers={},
             auth=None,
         ):
 
@@ -70,28 +71,37 @@ class Ccex(object):
             'nonce': int(time()),
         })
 
-        req = request(
-            method='GET',
-            url=url,
-            params=params,
-            headers=headers,
-        )
+        url = str(URL(url).with_query(params))
 
         if auth:
             signature = hmac.new(
-                self.password.encode('utf-8'),
-                req.url.encode('utf-8'),
-                'sha512',
+                key=self.password.encode('utf-8'),
+                msg=url.encode(),
+                digestmod='sha512',
             ).hexdigest()
 
-            req.headers['apisign'] = signature
+            headers['apisign'] = signature
 
-        res = await self.session.send(req, timeout=self.timeout)
-        res = await res.json()
+        try:
+            resp = await self.session.get(url, headers=headers, timeout=self.timeout)
+        except Exception as e:
+            self.logger.error(e)
+            return
+        else:
+            jresp = await resp.json(content_type=None)
+            resp.close()
+
+        if not jresp:
+            return
+
+        if jresp.get('success'):
+            return jresp.get('result')
+        else:
+            self.logger.error(jresp.get('message'))
 
     async def close(self):
 
-        self.session.close()
+        await self.session.close()
 
     def __getattr__(self, attr, *args, **kwargs):
 
@@ -149,9 +159,9 @@ class Ccex(object):
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
                     ret[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
 
-            return ret
+        return {'balance': ret}
 
-    async def get_orders(self, pair=None):
+    async def get_orders(self):
 
         ''' Return active orders '''
 
@@ -159,7 +169,7 @@ class Ccex(object):
 
         orders = await self.get_response(
             "%s/api.html" % (self.api_url),
-            params={'a': 'getopenorders', 'market': pair},
+            params={'a': 'getopenorders'},
             auth=True
         )
 
@@ -174,17 +184,17 @@ class Ccex(object):
                 order['id'] = x['OrderUuid']
                 ret.append(order)
 
-            return ret
+        return {'orders': ret}
 
-    async def get_history(self, pair=None, count=20):
+    async def get_history(self, count=20):
 
         ''' Return order history '''
 
         ret = []
 
-        trade = self.get_response(
+        trade = await self.get_response(
             "%s/api.html" % (self.api_url),
-            params={'a': 'getorderhistory', 'market': pair, 'count': count},
+            params={'a': 'getorderhistory', 'count': count},
             auth=True,
         )
 
@@ -200,26 +210,25 @@ class Ccex(object):
                 #order['status'] = 'filled'
                 ret.append(order)
 
-            return ret
+        return {'history': ret}
 
-    async def get_prices(self, symbols):
+    async def get_prices(self):
 
         ''' Return prices '''
 
-        ret = {}
-        prices = await self.get_request("%s/prices.json" % (self.api_url))
+        prices = await self.get_response("%s/prices.json" % (self.api_url))
 
-        if prices:
+        #if prices:
 
-            for symbol in symbols:
+        #    for symbol in symbols:
 
-                price = prices.get(symbol.lower(), {}).get('lastprice')
+        #        price = prices.get(symbol.lower(), {}).get('lastprice')
 
-                if price:
+        #        if price:
 
-                    ret[symbol] = "{:.9f}".format(price).rstrip('0')
+        #            ret[symbol] = "{:.9f}".format(price).rstrip('0')
 
-            return ret
+        return {'prices': prices}
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
@@ -315,7 +324,11 @@ class HitBTC(object):
         else:
             return data
 
-    async def get_response(self, url=None, params={}):
+    async def get_response(
+            self,
+            url=None,
+            params={},
+        ):
 
         ''' Get response '''
         try:
@@ -349,7 +362,7 @@ class HitBTC(object):
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-            return {'balance': ret}
+        return {'balance': ret}
 
     async def get_orders(self):
 
@@ -361,8 +374,7 @@ class HitBTC(object):
 
         orders = await self.get_response(url)
 
-        if orders:
-            return {'orders': orders}
+        return {'orders': orders}
 
     async def get_history(self, limit=20):
 
@@ -375,8 +387,7 @@ class HitBTC(object):
 
         history_trades = await self.get_response(url=url, params=params)
 
-        if history_trades:
-            return {'history': history_trades}
+        return {'history': history_trades}
 
     async def get_prices(self):
 
@@ -397,8 +408,7 @@ class HitBTC(object):
             if symbol and last:
                 prices[symbol] = last
 
-        if prices:
-            return {'prices': prices}
+        return {'prices': prices}
 
     def calculate_total_balance(self, balance=None, prices=None, base='BTC'):
 
