@@ -270,13 +270,15 @@ class HitBTC(object):
         password=None,
         timeout=5,
         loop=None,
+        log=None,
     ):
 
         self.url = url
         self.api_url = api_url + "/api/2"
         self.name = self.__class__.__name__
         self.logger = logging.getLogger(self.name)
-        self.logger.setLevel(logging.DEBUG)
+        if log:
+            self.logger.setLevel(log)
 
         if not loop:
             loop = asyncio.get_event_loop()
