@@ -32,14 +32,14 @@ from yarl import URL
 class Ccex(object):
 
     def __init__(
-            self,
-            url="https://c-cex.com",
-            api_url="https://c-cex.com/t",
-            login=None,
-            password=None,
-            timeout=5,
-            loop=None,
-        ):
+        self,
+        url="https://c-cex.com",
+        api_url="https://c-cex.com/t",
+        login=None,
+        password=None,
+        timeout=5,
+        loop=None,
+    ):
 
         self.url = url
         self.api_url = api_url
@@ -54,17 +54,16 @@ class Ccex(object):
 
         self.loop = loop
 
-        headers = {'User-Agent': 'CCEX_API_WRAPPER'}
         self.session = ClientSession(loop=self.loop, headers=headers)
         self.timeout = timeout
 
     async def get_response(
-            self,
-            url=None,
-            params={},
-            headers={},
-            auth=None,
-        ):
+        self,
+        url=None,
+        params={},
+        headers={},
+        auth=None,
+    ):
 
         params.update({
             'apikey': self.login,
@@ -75,7 +74,7 @@ class Ccex(object):
 
         if auth:
             signature = hmac.new(
-                key=self.password.encode('utf-8'),
+                key=self.password.encode(),
                 msg=str(url).encode(),
                 digestmod='sha512',
             ).hexdigest()
@@ -264,14 +263,14 @@ class HitBTC(object):
     ''' Connect to exchange, get some stuff '''
 
     def __init__(
-            self,
-            url="https://hitbtc.com",
-            api_url="https://api.hitbtc.com",
-            login=None,
-            password=None,
-            timeout=5,
-            loop=None,
-        ):
+        self,
+        url="https://hitbtc.com",
+        api_url="https://api.hitbtc.com",
+        login=None,
+        password=None,
+        timeout=5,
+        loop=None,
+    ):
 
         self.url = url
         self.api_url = api_url + "/api/2"
@@ -330,10 +329,10 @@ class HitBTC(object):
             return data
 
     async def get_response(
-            self,
-            url=None,
-            params={},
-        ):
+        self,
+        url=None,
+        params={},
+    ):
 
         ''' Get response '''
         try:
