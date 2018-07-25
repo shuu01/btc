@@ -22,7 +22,7 @@
 #
 #
 
-from aiohttp import BasicAuth, ClientSession, ClientRequest
+from aiohttp import BasicAuth, ClientSession
 import logging
 from time import time
 import hmac
