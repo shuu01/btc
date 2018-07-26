@@ -39,6 +39,7 @@ class Ccex(object):
         password=None,
         timeout=5,
         loop=None,
+        log=None,
     ):
 
         self.url = url
@@ -47,14 +48,15 @@ class Ccex(object):
         self.password = password
         self.name = self.__class__.__name__
         self.logger = logging.getLogger(self.name)
-        self.logger.setLevel(logging.DEBUG)
+        if log:
+            self.logger.setLevel(log)
 
         if not loop:
             loop = asyncio.get_event_loop()
 
         self.loop = loop
 
-        self.session = ClientSession(loop=self.loop, headers=headers)
+        self.session = ClientSession(loop=self.loop)
         self.timeout = timeout
 
     async def get_response(
