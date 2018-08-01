@@ -207,11 +207,20 @@ class Ccex(object):
             for x in trade:
                 order = {}
                 order['symbol'] = x['Exchange']
-                order['side'] = 'buy' if x['OrderType'] == 'LIMIT_BUY' else 'sell'
                 order['quantity'] = x['Quantity']
-                order['price'] = x['Price']
+                order['price'] = x['PricePerUnit']
                 order['id'] = x['OrderUuid']
-                #order['status'] = 'filled'
+                order['side'] = 'buy'
+                if x['OrderType'] == 'LIMIT_BUY':
+                    order['side'] = 'buy'
+                    order['quantity'] = x['Quantity']/x['PricePerUnit']
+                else:
+                    order['side'] = 'sell'
+                if x['QuantityRemaining'] == 0:
+                    order['status'] = 'filled'
+                else:
+                    order['status'] = 'other'
+                order['updatedAt'] = x['TimeStamp']
                 ret.append(order)
 
         return {'history': ret}
