@@ -28,6 +28,7 @@ from time import time
 import hmac
 import asyncio
 from yarl import URL
+import uuid
 
 class Ccex(object):
 
@@ -61,6 +62,7 @@ class Ccex(object):
 
     async def get_response(
         self,
+        method='GET',
         url=None,
         params={},
         headers={},
@@ -84,7 +86,7 @@ class Ccex(object):
             headers['apisign'] = signature
 
         try:
-            resp = await self.session.get(str(url), headers=headers, timeout=self.timeout)
+            resp = await self.session.request(method, str(url), headers=headers, timeout=self.timeout)
         except Exception as e:
             self.logger.error(e)
             return
@@ -109,7 +111,7 @@ class Ccex(object):
 
     def __getattr__(self, attr, *args, **kwargs):
 
-        self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
+        self.logger.error("method {}({}, {}) doesn't exist".format(attr, args, kwargs))
 
     async def get_data(self, callback=None):
 
@@ -121,19 +123,21 @@ class Ccex(object):
             'total': str,
         }'''
 
-        futures = [
+        futures = (
             asyncio.ensure_future(self.get_balance()),
             asyncio.ensure_future(self.get_orders()),
             asyncio.ensure_future(self.get_history()),
             asyncio.ensure_future(self.get_prices()),
-        ]
+        )
 
-        done, pending = await asyncio.wait(futures)
+        results = await asyncio.gather(*futures)
 
         data = {}
 
-        for future in done:
-            data.update(future.result())
+        data['balance'] = results[0]
+        data['orders'] = results[1]
+        data['history'] = results[2]
+        data['prices'] = results[3]
 
         total = self.calculate_total_balance(balance=data.get('balance'), prices=data.get('prices'))
 
@@ -151,7 +155,7 @@ class Ccex(object):
         ret = {}
 
         balances = await self.get_response(
-            url="%s/api.html" % (self.api_url),
+            url="{}/api.html".format(self.api_url),
             params={'a': 'getbalances'},
             auth=True
         )
@@ -163,7 +167,7 @@ class Ccex(object):
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
                     ret[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
 
-        return {'balance': ret}
+        return ret
 
     async def get_orders(self):
 
@@ -172,7 +176,7 @@ class Ccex(object):
         ret = []
 
         orders = await self.get_response(
-            "%s/api.html" % (self.api_url),
+            url="{}/api.html".format(self.api_url),
             params={'a': 'getopenorders'},
             auth=True
         )
@@ -188,7 +192,7 @@ class Ccex(object):
                 order['id'] = x['OrderUuid']
                 ret.append(order)
 
-        return {'orders': ret}
+        return ret
 
     async def get_history(self, count=20):
 
@@ -197,7 +201,7 @@ class Ccex(object):
         ret = []
 
         trade = await self.get_response(
-            "%s/api.html" % (self.api_url),
+            url="{}/api.html".format(self.api_url),
             params={'a': 'getorderhistory', 'count': count},
             auth=True,
         )
@@ -223,7 +227,7 @@ class Ccex(object):
                 order['updatedAt'] = x['TimeStamp']
                 ret.append(order)
 
-        return {'history': ret}
+        return ret
 
     async def get_prices(self):
 
@@ -231,7 +235,7 @@ class Ccex(object):
 
         ret = {}
 
-        prices = await self.get_response("%s/prices.json" % (self.api_url))
+        prices = await self.get_response(url="{}/prices.json".format(self.api_url))
 
         if prices:
 
@@ -243,7 +247,7 @@ class Ccex(object):
 
                     ret[symbol] = "{:.9f}".format(price).rstrip('0')
 
-        return {'prices': ret}
+        return ret
 
     def calculate_total_balance(self, balance, prices, base='BTC'):
 
@@ -302,7 +306,7 @@ class HitBTC(object):
 
     def __getattr__(self, attr, *args, **kwargs):
 
-        self.logger.error("method %s(%s, %s) doesn't exist" % (attr, args, kwargs))
+        self.logger.error("method {}({}, {}) doesn't exist".format(attr, args, kwargs))
 
     async def close(self):
 
@@ -318,19 +322,21 @@ class HitBTC(object):
             'total': str,
         }'''
 
-        futures = [
+        futures = (
             asyncio.ensure_future(self.get_balance()),
             asyncio.ensure_future(self.get_orders()),
             asyncio.ensure_future(self.get_history()),
             asyncio.ensure_future(self.get_prices()),
-        ]
+        )
 
-        done, pending = await asyncio.wait(futures)
+        results = await asyncio.gather(*futures)
 
         data = {}
 
-        for future in done:
-            data.update(future.result())
+        data['balance'] = results[0]
+        data['orders'] = results[1]
+        data['history'] = results[2]
+        data['prices'] = results[3]
 
         total = self.calculate_total_balance(balance=data.get('balance'), prices=data.get('prices'))
 
@@ -343,13 +349,15 @@ class HitBTC(object):
 
     async def get_response(
         self,
+        method='GET',
         url=None,
         params={},
     ):
 
         ''' Get response '''
+
         try:
-            resp = await self.session.get(url, params=params, timeout=self.timeout)
+            resp = await self.session.request(method, url, params=params, timeout=self.timeout)
         except Exception as e:
             self.logger.error(e)
             return
@@ -368,7 +376,7 @@ class HitBTC(object):
 
         self.logger.info('get balance')
 
-        url = "%s/trading/balance" % self.api_url
+        url = "{}/trading/balance".format(self.api_url)
 
         balances = await self.get_response(url=url)
 
@@ -379,7 +387,7 @@ class HitBTC(object):
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-        return {'balance': ret}
+        return ret
 
     async def get_orders(self):
 
@@ -387,11 +395,23 @@ class HitBTC(object):
 
         self.logger.info('get orders')
 
-        url = "%s/order" % self.api_url
+        url = "{}/order".format(self.api_url)
 
-        orders = await self.get_response(url)
+        orders = await self.get_response(url=url)
 
-        return {'orders': orders}
+        return orders
+
+    async def get_order(self, order_id):
+
+        ''' Return order by order id '''
+
+        self.logger.info('get order {}'.format(order_id))
+
+        url = "{}/order/{}".format(self.api_url, order_id)
+
+        order = await self.get_response(url=url)
+
+        return order
 
     async def get_history(self, limit=20):
 
@@ -399,12 +419,12 @@ class HitBTC(object):
 
         self.logger.info('get history')
 
-        url = "%s/history/order" % self.api_url
+        url = "{}/history/order".format(self.api_url)
         params={'sort': 'desc', 'limit': limit}
 
         history_trades = await self.get_response(url=url, params=params)
 
-        return {'history': history_trades}
+        return history_trades
 
     async def get_prices(self):
 
@@ -412,9 +432,9 @@ class HitBTC(object):
 
         self.logger.info('get prices')
 
-        url = "%s/public/ticker/" % self.api_url
+        url = "{}/public/ticker/".format(self.api_url)
 
-        tickers = await self.get_response(url)
+        tickers = await self.get_response(url=url)
 
         prices = {}
 
@@ -425,13 +445,32 @@ class HitBTC(object):
             if symbol and last:
                 prices[symbol] = last
 
-        return {'prices': prices}
+        return prices
+
+    async def new_order(self, symbol, side, quantity, price):
+
+        self.logger.info('place new order in {}'.format(symbol))
+
+        order_id = uuid.uuid4().hex
+
+        params = {
+            'symbol': symbol,
+            'side': side,
+            'quantity': quantity,
+            'price': price,
+        }
+
+        url = "{}/order/{}".format(self.api_url, order_id)
+
+        result = await self.get_response(method='PUT', url=url, params=params)
+
+        return result
 
     def calculate_total_balance(self, balance=None, prices=None, base='BTC'):
 
         ''' Calculate total balance in base currency '''
 
-        self.logger.info('set total balance in %s' % base)
+        self.logger.info('set total balance in {}'.format(base))
 
         total = 0
 
