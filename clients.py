@@ -211,13 +211,13 @@ class Ccex(object):
             for x in trade:
                 order = {}
                 order['symbol'] = x['Exchange']
-                order['quantity'] = x['Quantity']
-                order['price'] = x['PricePerUnit']
+                order['quantity'] = "{:.2f}".format(x['Quantity'])
+                order['price'] = "{:.9f}".format(x['PricePerUnit']).rstrip('0')
                 order['id'] = x['OrderUuid']
                 order['side'] = 'buy'
                 if x['OrderType'] == 'LIMIT_BUY':
                     order['side'] = 'buy'
-                    order['quantity'] = x['Quantity']/x['PricePerUnit']
+                    order['quantity'] = "{:.2f}".format(x['Quantity']/x['PricePerUnit'])
                 else:
                     order['side'] = 'sell'
                 if x['QuantityRemaining'] == 0:
@@ -301,7 +301,12 @@ class HitBTC(object):
         self.loop = loop
 
         auth = BasicAuth(login=login, password=password)
-        self.session = ClientSession(loop=self.loop, auth=auth)
+
+        try:
+            self.session = ClientSession(loop=self.loop, auth=auth)
+        except Exception as e:
+            print(e)
+
         self.timeout = timeout
 
     def __getattr__(self, attr, *args, **kwargs):
@@ -380,14 +385,16 @@ class HitBTC(object):
 
         balances = await self.get_response(url=url)
 
+        ret = {}
+
         if balances:
-            ret = {}
             for balance in balances:
                 currency = balance['currency']
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-        return ret
+        if ret:
+            return ret
 
     async def get_orders(self):
 
@@ -462,9 +469,9 @@ class HitBTC(object):
 
         url = "{}/order/{}".format(self.api_url, order_id)
 
-        result = await self.get_response(method='PUT', url=url, params=params)
+        response = await self.get_response(method='PUT', url=url, params=params)
 
-        return result
+        return response
 
     def calculate_total_balance(self, balance=None, prices=None, base='BTC'):
 
