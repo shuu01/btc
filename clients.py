@@ -161,7 +161,6 @@ class Ccex(object):
         )
 
         if balances:
-
             for balance in balances:
                 currency = balance['Currency']
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
@@ -182,7 +181,6 @@ class Ccex(object):
         )
 
         if orders:
-
             for x in orders:
                 order = {}
                 order['symbol'] = x['Exchange']
@@ -207,7 +205,6 @@ class Ccex(object):
         )
 
         if trade:
-
             for x in trade:
                 order = {}
                 order['symbol'] = x['Exchange']
@@ -238,13 +235,9 @@ class Ccex(object):
         prices = await self.get_response(url="{}/prices.json".format(self.api_url))
 
         if prices:
-
             for symbol, values in prices.items():
-
                 price = values.get('lastprice')
-
                 if price:
-
                     ret[symbol] = "{:.9f}".format(price).rstrip('0')
 
         return ret
@@ -390,6 +383,7 @@ class HitBTC(object):
         if balances:
             for balance in balances:
                 currency = balance['currency']
+
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
@@ -445,9 +439,9 @@ class HitBTC(object):
         prices = {}
 
         for ticker in tickers:
-
             last = ticker.get('last')
             symbol = ticker.get('symbol')
+
             if symbol and last:
                 prices[symbol] = last
 
@@ -481,9 +475,7 @@ class HitBTC(object):
         total = 0
 
         if prices and balance:
-
             for currency, values in balance.items():
-
                 available = float(values['available'])
                 reserved = float(values['reserved'])
 
