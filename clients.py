@@ -187,7 +187,7 @@ class Ccex(object):
                 order = {}
                 order['symbol'] = x['Exchange']
                 order['side'] = 'buy' if x['OrderType'] == 'LIMIT_BUY' else 'sell'
-                order['quantity'] = x['Quantity']
+                order['quantity'] = "{:.2f}".format(x['Quantity'])
                 order['price'] = "{:.9f}".format(x['Limit']).rstrip('0')
                 order['id'] = x['OrderUuid']
                 ret.append(order)
@@ -393,8 +393,7 @@ class HitBTC(object):
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
 
-        if ret:
-            return ret
+        return ret
 
     async def get_orders(self):
 
