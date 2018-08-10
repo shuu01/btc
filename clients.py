@@ -360,7 +360,7 @@ class HitBTC(object):
             self.logger.error(e)
             return
         else:
-            jresp = await resp.json()
+            jresp = await resp.json(content_type=None)
             resp.close()
 
         if 'error' in jresp:
@@ -399,7 +399,10 @@ class HitBTC(object):
 
         orders = await self.get_response(url=url)
 
-        return orders
+        if orders:
+            return orders
+        else:
+            return []
 
     async def get_order(self, order_id):
 
@@ -424,7 +427,10 @@ class HitBTC(object):
 
         history_trades = await self.get_response(url=url, params=params)
 
-        return history_trades
+        if history_trades:
+            return history_trades
+        else:
+            return []
 
     async def get_prices(self):
 
@@ -438,12 +444,14 @@ class HitBTC(object):
 
         prices = {}
 
-        for ticker in tickers:
-            last = ticker.get('last')
-            symbol = ticker.get('symbol')
+        if tickers:
 
-            if symbol and last:
-                prices[symbol] = last
+            for ticker in tickers:
+                last = ticker.get('last')
+                symbol = ticker.get('symbol')
+
+                if symbol and last:
+                    prices[symbol] = last
 
         return prices
 
