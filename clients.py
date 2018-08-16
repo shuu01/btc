@@ -359,9 +359,13 @@ class HitBTC(object):
         except Exception as e:
             self.logger.error(e)
             return
-        else:
+
+        try:
             jresp = await resp.json(content_type=None)
             resp.close()
+        except Exception as e:
+            self.logger.error(e)
+            return
 
         if 'error' in jresp:
             self.logger.error(jresp)
