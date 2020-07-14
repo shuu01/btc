@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+btc.db*
+config.yaml
+config.json
+web/

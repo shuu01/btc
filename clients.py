@@ -88,11 +88,17 @@ class Ccex(object):
         try:
             resp = await self.session.request(method, str(url), headers=headers, timeout=self.timeout)
         except Exception as e:
+            self.logger.error('request error')
             self.logger.error(e)
             return
-        else:
+
+        try:
             jresp = await resp.json(content_type=None)
             resp.close()
+        except Exception as e:
+            self.logger.error(resp)
+            self.logger.error(e)
+            return
 
         if not jresp:
             return
@@ -162,7 +168,7 @@ class Ccex(object):
 
         if balances:
             for balance in balances:
-                currency = balance['Currency']
+                currency = balance['Currency'].lower()
                 if float(balance['Available']) > 0 or float(balance['Balance']) > 0:
                     ret[currency] = {'available': balance['Available'], 'reserved': balance['Balance']}
 
@@ -172,7 +178,7 @@ class Ccex(object):
 
         ''' Return active orders '''
 
-        ret = []
+        ret = {}
 
         orders = await self.get_response(
             url="{}/api.html".format(self.api_url),
@@ -183,12 +189,13 @@ class Ccex(object):
         if orders:
             for x in orders:
                 order = {}
-                order['symbol'] = x['Exchange']
+                order['symbol'] = x['Exchange'].lower()
                 order['side'] = 'buy' if x['OrderType'] == 'LIMIT_BUY' else 'sell'
                 order['quantity'] = "{:.2f}".format(x['Quantity'])
                 order['price'] = "{:.9f}".format(x['Limit']).rstrip('0')
-                order['id'] = x['OrderUuid']
-                ret.append(order)
+                order_id = x['OrderUuid']
+                order['id'] = order_id
+                ret[order_id] = order
 
         return ret
 
@@ -207,7 +214,7 @@ class Ccex(object):
         if trade:
             for x in trade:
                 order = {}
-                order['symbol'] = x['Exchange']
+                order['symbol'] = x['Exchange'].lower()
                 order['quantity'] = "{:.2f}".format(x['Quantity'])
                 order['price'] = "{:.9f}".format(x['PricePerUnit']).rstrip('0')
                 order['id'] = x['OrderUuid']
@@ -386,7 +393,7 @@ class HitBTC(object):
 
         if balances:
             for balance in balances:
-                currency = balance['currency']
+                currency = balance['currency'].lower()
 
                 if float(balance['available']) > 0 or float(balance['reserved']) > 0:
                     ret[currency] = balance
@@ -402,11 +409,15 @@ class HitBTC(object):
         url = "{}/order".format(self.api_url)
 
         orders = await self.get_response(url=url)
+        ret = {}
 
         if orders:
-            return orders
-        else:
-            return []
+            for order in orders:
+                order_id = order['id']
+                order['symbol'] = order['symbol'].lower()
+                ret[order_id] = order
+
+        return ret
 
     async def get_order(self, order_id):
 
@@ -417,6 +428,7 @@ class HitBTC(object):
         url = "{}/order/{}".format(self.api_url, order_id)
 
         order = await self.get_response(url=url)
+        order['symbol'] = order['symbol'].lower()
 
         return order
 
@@ -432,6 +444,8 @@ class HitBTC(object):
         history_trades = await self.get_response(url=url, params=params)
 
         if history_trades:
+            for order in history_trades:
+                order['symbol'] = order['symbol'].lower()
             return history_trades
         else:
             return []
@@ -452,7 +466,7 @@ class HitBTC(object):
 
             for ticker in tickers:
                 last = ticker.get('last')
-                symbol = ticker.get('symbol')
+                symbol = ticker.get('symbol').lower()
 
                 if symbol and last:
                     prices[symbol] = last

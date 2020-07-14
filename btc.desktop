@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=BTC
-Exec=btc.py
-Icon=btc
-Terminal=false
-Type=Application
-Categories=Network

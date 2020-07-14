@@ -1,0 +1,11 @@
+exchanges:
+  hitbtc:
+    name: "HitBTC"
+    url: "https://hitbtc.com"
+    api: "https://api.hitbtc.com"
+    public_key: "key"
+    secret: "secret"
+    enabled: 1
+telegram:
+  token: "12345678"
+  chat_id: "1234"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  test.py
+#  btc.py
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -20,38 +20,52 @@
 #
 #
 
-from clients import HitBTC, Ccex
+from clients import HitBTC
 import asyncio
 import logging
-from os import path
-import json
 import aiohttp
-from aiosocks.connector import ProxyConnector, ProxyClientRequest
+#from aiosocks.connector import ProxyConnector, ProxyClientRequest
 import aiosqlite
 import db
 from web import web_app
+from config import config
+import requests
 
-logging.basicConfig()
+logging.basicConfig(
+  format='%(asctime)s %(levelname)-8s %(message)s',
+  level=logging.WARNING,
+  datefmt='%Y-%m-%d %H:%M:%S'
+)
 #DB = 'btc.db'
-CFG = 'btc.cfg'
 
-config = {}
-config_path = path.expanduser(CFG)
+def telegram_send_message(text, proxy=False):
 
-with open(config_path) as json_data_file:
-    try:
-        config = json.load(json_data_file)
-    except Exception as e:
-        print(e)
+    url = "https://api.telegram.org/bot{}/".format(config.get('telegram').get('token'))
+    chat_id = config.get('telegram').get('chat_id')
+    if proxy:
+        proxies = {'https': "socks5h://127.0.0.1:9050"}
+    else:
+        proxies = {}
 
-async def telegram_send_message(text):
+    if url and chat_id:
+        try:
+            params = {'chat_id': chat_id, 'text': f"{text}", 'parse_mode': 'html'}
+            resp = requests.get(url + 'sendMessage', proxies=proxies, params=params)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception as e:
+            print(e)
+
+async def telegram_send_message_async(text, proxy=False):
 
     url = "https://api.telegram.org/bot{}/".format(config.get('telegram').get('token'))
     chat_id = config.get('telegram').get('chat_id')
 
     conn = ProxyConnector()
-
-    proxy = "socks5://localhost:9050"
+    if proxy:
+        proxy = "socks5://localhost:9050"
+    else:
+        proxy = None
 
     if url and chat_id:
         try:
@@ -92,17 +106,21 @@ async def load_to_db(name, data):
 
 async def check_history():
 
-    for row in await db.get_history_confirmed():
-        message = "{}: {} {} {} for {:.9f}".format(
-            row[1], #exchange
-            row[2], #symbol
-            row[3], #side
-            row[5], #quantity
-            row[4], #price
-        )
-        response = await telegram_send_message(message)
-        if response and response.get('ok'):
-            await db.set_history_confirmed(row[0], row[1])
+    rows =  await db.get_history_confirmed()
+    if rows:
+        await db.clear_db()
+        for row in rows:
+            message = "{}: {} {} {} for {:.9f}".format(
+                row[1], #exchange
+                row[2], #symbol
+                row[3], #side
+                row[5], #quantity
+                row[4], #price
+            )
+            #response = await telegram_send_message(message)
+            response = telegram_send_message(message)
+            if response and response.get('ok'):
+                await db.set_history_confirmed(row[0], row[1])
 
 def show(name, data):
 
@@ -145,6 +163,7 @@ async def periodic_update(clients, period):
 
 async def main(loop):
 
+    #await db.clear_db()
     await db.init_db()
 
     clients = []
@@ -153,7 +172,7 @@ async def main(loop):
             client = create_client(exchange, loop)
             clients.append(client)
 
-    await web_app()
+    #await web_app()
     await periodic_update(clients, 5)
 
     # try:
@@ -168,4 +187,10 @@ async def main(loop):
 if __name__ == '__main__':
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main(loop))
+    try:
+        loop.run_until_complete(main(loop))
+    except KeyboardInterrupt:
+        logging.warning("Process interrupted")
+    finally:
+        loop.close()
+        logging.info("Successfully shutdown")

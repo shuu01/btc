@@ -1,0 +1,6 @@
+aiohttp
+#aiosocks
+aiosqlite
+aiohttp_jinja2
+requests[socks]
+pyyaml

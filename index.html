@@ -1,3 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="//code.jquery.com/jquery-3.3.1.js"></script>
+    <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    <script src="//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+</head>
+
 <body>
-    {{orders}}
+    <script>
+    function ordertable(exchange, orders) {
+        var table_id = "#" + exchange;
+        $(table_id).DataTable(
+            {
+                data: orders,
+                iDisplayLength: 25,
+                bFilter: false,
+                bInfo: false,
+                pageLength: 10,
+                bLengthChange: false,
+                paging: false,
+                rowCallback: function(row, data, index){
+                    if (data.side == "buy"){
+                        $(row).css('color', 'green');
+                    }
+                    else{
+                        $(row).css('color', 'red');
+                    }
+                },
+                columns: [
+                    {title: "symbol", data: 'symbol'},
+                    {title: "side", data: 'side'},
+                    {title: "quantity", data: 'quantity'},
+                    {
+                        title: "price",
+                        data: 'price',
+                        render: function(data, type, full, meta){
+                            var symbol = full.symbol;
+                            var exchange = full.exchange;
+                            return full.price + " (" + full.cur_price + ")";
+                        },
+                        width: "25%"
+                    }
+                ]
+            }
+        );
+    };
+    </script>
+    {%- for exchange in orders %}
+    <table id={{exchange}} class="cell-border compact" width="90%"></table>
+    <script>
+        $(document).ready(ordertable("{{exchange}}", {{orders[exchange]|safe}}));
+    </script>
+    {% endfor %}
+
 </body>
+</html>
